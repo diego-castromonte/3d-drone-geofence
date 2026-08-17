@@ -1,0 +1,51 @@
+Generated Mission Queue: [(-9.13, 4.07, -6.75), (-16.97, 18.04, -5.32), (26.9, -22.87, -10.09)]
+Arming vehicle...
+Taking off to 10m...
+[FLYING WP1] Pos: (5.99, -3.94, -10.01)m | Actual Speed: (0.00, -0.02, 0.00)m/s | Cmd Speed: (-5.26, 5.26, 1.31)m/s
+[FLYING WP1] Pos: (5.99, -3.94, -10.01)m | Actual Speed: (0.00, -0.02, 0.00)m/s | Cmd Speed: (-5.26, 5.26, 1.31)m/s
+[FLYING WP1] Pos: (5.85, -3.79, -9.81)m | Actual Speed: (-0.66, 0.65, 0.65)m/s | Cmd Speed: (-5.11, 5.11, 1.28)m/s
+[FLYING WP1] Pos: (4.21, -2.15, -8.71)m | Actual Speed: (-2.64, 2.64, 1.24)m/s | Cmd Speed: (-4.28, 4.28, 1.07)m/s
+[FLYING WP1] Pos: (0.82, 1.20, -7.63)m | Actual Speed: (-3.88, 3.76, 0.91)m/s | Cmd Speed: (-3.47, 3.47, 0.87)m/s
+[FLYING WP1] Pos: (-4.02, 5.85, -6.68)m | Actual Speed: (-2.06, 1.86, 0.04)m/s | Cmd Speed: (-2.76, -2.31, -0.09)m/s
+[FLYING WP1] Pos: (-6.99, 5.71, -6.77)m | Actual Speed: (-1.94, -2.14, 0.09)m/s | Cmd Speed: (-2.78, -2.13, 0.03)m/s
+[FLYING WP1] Pos: (-8.16, 4.51, -6.74)m | Actual Speed: (-2.75, -2.39, 0.04)m/s | Cmd Speed: (-1.27, -0.57, -0.01)m/s
+
+[WAYPOINT 1 REACHED] At (-8.16, 4.51, -6.74)m
+Advancing to Next Waypoint: (-16.97, 18.04, -5.32)
+
+[FLYING WP2] Pos: (-8.82, 3.94, -6.74)m | Actual Speed: (-2.76, -2.10, 0.02)m/s | Cmd Speed: (-2.80, 2.80, 0.70)m/s
+[FLYING WP2] Pos: (-13.56, 4.89, -5.49)m | Actual Speed: (-2.10, 2.04, 0.44)m/s | Cmd Speed: (-1.86, 1.86, 0.22)m/s
+[FLYING WP2] Pos: (-16.94, 12.11, -5.32)m | Actual Speed: (0.31, 1.76, -0.01)m/s | Cmd Speed: (-0.04, 1.74, -0.01)m/s
+[FLYING WP2] Pos: (-16.95, 16.89, -5.32)m | Actual Speed: (0.01, 1.76, -0.00)m/s | Cmd Speed: (-0.02, 1.50, -0.00)m/s
+
+[WAYPOINT 2 REACHED] At (-16.95, 16.89, -5.32)m
+Advancing to Next Waypoint: (26.9, -22.87, -10.09)
+
+[FLYING WP3] Pos: (-16.96, 17.32, -5.32)m | Actual Speed: (0.01, 1.74, -0.00)m/s | Cmd Speed: (1.74, -1.74, -0.43)m/s
+[FLYING WP3] Pos: (-9.31, 10.29, -8.02)m | Actual Speed: (3.32, -3.32, -0.88)m/s | Cmd Speed: (3.77, -3.77, -0.94)m/s
+[FLYING WP3] Pos: (1.07, -0.08, -10.30)m | Actual Speed: (4.99, -5.00, -0.22)m/s | Cmd Speed: (5.47, -5.47, 0.27)m/s
+[FLYING WP3] Pos: (9.09, -8.08, -10.02)m | Actual Speed: (5.52, -5.55, 0.04)m/s | Cmd Speed: (5.27, -5.27, -0.09)m/s
+[FLYING WP3] Pos: (17.26, -16.28, -10.12)m | Actual Speed: (5.40, -5.42, -0.00)m/s | Cmd Speed: (5.34, -5.34, 0.03)m/s
+[FLYING WP3] Pos: (22.52, -21.56, -10.09)m | Actual Speed: (4.79, -4.79, 0.03)m/s | Cmd Speed: (1.86, -1.70, 0.00)m/s
+[FLYING WP3] Pos: (24.66, -23.71, -10.08)m | Actual Speed: (3.84, -3.85, 0.02)m/s | Cmd Speed: (0.90, 0.90, -0.02)m/s
+
+*** 3D GEOFENCE BREACH AT Pos:(25.56, -24.62, -10.07)m! ***
+
+Aborting invalid waypoint (26.9, -22.87, -10.09) and executing recovery...
+
+
+*** RECOVERY COMPLETE AT (4.27, -5.16, -10.01)m! ***
+
+[RECOVERING] Pos: (4.27, -5.16, -10.01)m | Cmd Speed: (-5.00, 5.00, 0.01)m/s
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (4.2, -5.1, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (4.1, -5.0, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.9, -4.9, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.8, -4.7, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.7, -4.6, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.6, -4.5, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.5, -4.5, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.5, -4.5, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.6, -4.6, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.7, -4.6, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.7, -4.7, -10.0)m
+[HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.8, -4.7, -10.0)m
