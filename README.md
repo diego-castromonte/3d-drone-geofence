@@ -19,11 +19,12 @@ Three-state finite state machine, driven off live `LOCAL_POSITION_NED` telemetry
 ```mermaid
 stateDiagram-v2
     [*] --> FLYING
-    FLYING --> RECOVERING: Breach
+    FLYING --> RECOVERING:  Breach
     RECOVERING --> FLYING: Safe + WP Remains
     RECOVERING --> HOLDING: Safe + Speed <= 0.2m/s
     FLYING --> HOLDING: Final WP Reached
     HOLDING --> [*]
+```
 
 - **FLYING** — proportional velocity control toward the current waypoint, with adaptive proximity slowdown near the fence walls.
 - **RECOVERING** — Waypoint is aborted, and the vehicle is driven back toward a safe origin under a vector-based velocity controller.
