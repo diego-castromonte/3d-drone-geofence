@@ -19,16 +19,16 @@ Three-state finite state machine, driven off live `LOCAL_POSITION_NED` telemetry
 ```mermaid
 stateDiagram-v2
     [*] --> FLYING
-    FLYING --> RECOVERING: geofence breach detected
-    RECOVERING --> FLYING: back inside safe radius + velocity settled, waypoints remain
-    RECOVERING --> HOLDING: back inside safe radius + velocity settled, mission complete
-    FLYING --> HOLDING: final waypoint reached
+    FLYING --> RECOVERING: Geofence Breach
+    RECOVERING --> FLYING: In Safe Bounds<br/>& Waypoints Remain
+    RECOVERING --> HOLDING: In Safe Bounds<br/>& Speed <= 0.2 m/s
+    FLYING --> HOLDING: Final Waypoint Reached
     HOLDING --> [*]
 ```
 
 - **FLYING** — proportional velocity control toward the current waypoint, with adaptive proximity slowdown near the fence walls.
-- **RECOVERING** — waypoint is aborted, vehicle is driven back toward a safe origin under a separate (higher-gain-capped) velocity controller.
-- **HOLDING** — vehicle switches from velocity control to position control (MAVLink bitmask swap) and locks onto a fixed point with zero commanded velocity.
+- **RECOVERING** — Waypoint is aborted, and the vehicle is driven back toward a safe origin under a vector-based velocity controller.
+- **HOLDING** — Vehicle switches from velocity control to position control (MAVLink bitmask swap) and locks onto a fixed coordinate with zero commanded velocity.
 
 ## Control design
 
@@ -45,7 +45,7 @@ with `Kp = 1.3`. Horizontal axes (X, Y) are capped at 6.0 m/s cruise, vertical (
 
 ### Adaptive proximity slowdown
 
-A second, softer safety layer runs independently of hard breach detection. As the vehicle approaches within 8 m of any geofence wall, cruise speed is linearly throttled down:
+A second, softer safety layer runs independently of hard breach detection. The controller evaluates the shortest distance to any of the 6 geofence faces in real time, and within an 8.0 m proximity zone, linearly throttles cruise speed down:
 
 ```
 min_wall_dist = min(dist_to_x_wall, dist_to_y_wall, dist_to_z_wall)
@@ -61,7 +61,8 @@ This means the vehicle is already decelerating well before it would ever hit a h
 
 ### Velocity-gated settling (RECOVERING → HOLDING)
 
-Early versions locked into a hold position based on position alone, which caused visible wobble — residual velocity would carry the vehicle past the hold point, and the controller would fight it back and forth. Fix: gate the FLYING/RECOVERING → HOLDING transition on **both** position *and* a low-velocity threshold:
+Early iterations locked into a hold position based on spatial coordinates alone, causing visible wobble due to residual kinetic momentum. 
+The residual velocity would carry the vehicle past the hold point, and the controller would fight it back and forth. The state transition from RECOVERING to HOLDING is now gated by boundary compliance and low total velocity theshold: 
 
 ```
 current_speed = sqrt(vx^2 + vy^2 + vz^2)
@@ -117,7 +118,7 @@ Note the mission-generated waypoint 3 (26.9, -22.87, -10.09) is itself outside t
 
 ## Known limitations
 
-- **P-only control** — no integral or derivative terms yet, so there's some steady-state lag on long straight-line approaches. Working, but not tuned for minimum settling time.
+- **$P$-Only Control Loop**: P-only control — no integral term (some steady-state lag is possible on long straight-line approaches) or derivative term (no explicit damping beyond the velocity-gated hold check). Working, but not tuned for minimum settling time.
 - **Single-vehicle only** — this guard governs one drone. Multi-vehicle SITL (drone 2 aborting if drone 1 breaches) is the active next step.
 - **Fixed recovery target** — RECOVERING always drives back toward the origin `(0, 0, -10m)` rather than the nearest safe point, so recovery distance can be long depending on where the breach happens.
 - **SITL only** — validated in simulation (ArduPilot SITL + QGroundControl), not yet flown on hardware.
