@@ -366,19 +366,26 @@ python3 multi_drone/multi_GeoFence.py
 
 # Project Structure
 
+# Project Structure
+
 ```text
 .
 ├── single_drone/
-│   └── geofence_guard.py
+│   ├── geofence_guard.py
+│   └── single_drone_sample_run.log
 │
 ├── multi_drone/
-│   └── multi_GeoFence.py
+│   ├── multi_GeoFence.py
+│   └── multi_drone_sample_run.log
 │
 ├── matlab/
 │   └── live_drone_dashboard_2D.m
 │
+├── assets/
+│   └── dashboard_preview.png
+│
+├── requirements.txt
 └── README.md
-```
 
 ---
 
