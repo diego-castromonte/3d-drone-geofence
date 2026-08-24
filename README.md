@@ -88,15 +88,7 @@ stateDiagram-v2
 
 Each axis is controlled independently using a proportional position-error controller with velocity limits.
 
-$$
-\text{velocity} =
-\text{clamp}
-\left(
--v_{\text{max}},
-v_{\text{max}},
-K_p(\text{target}-\text{current})
-\right)
-$$
+velocity = clamp(-v_max, v_max, Kp * (target - current))
 
 Where:
 
@@ -114,32 +106,11 @@ The controller continuously evaluates the shortest distance to all six geofence 
 
 When a vehicle enters the **8.0 m proximity buffer**, its maximum velocity is reduced linearly.
 
-$$
-\text{fence_speed} =
-\begin{cases}
-1.0 & d_{\min} \geq 8.0\text{ m} \
-\max\left(0.15,\frac{d_{\min}}{8.0}\right)
-& d_{\min}<8.0\text{ m}
-\end{cases}
-$$
+fence_speed = 1.0                              if min_wall_dist >= 8.0 m
+fence_speed = max(0.15, min_wall_dist / 8.0)  if min_wall_dist <  8.0 m
 
-The resulting velocity limits are:
-
-$$
-\text{adaptive_max_horiz}
-=========================
-
-6.0 \cdot \text{fence_speed}
-\quad \text{m/s}
-$$
-
-$$
-\text{adaptive_max_vert}
-========================
-
-1.5 \cdot \text{fence_speed}
-\quad \text{m/s}
-$$
+adaptive_max_horiz = 6.0 * fence_speed   # m/s
+adaptive_max_vert  = 1.5 * fence_speed   # m/s
 
 This allows vehicles to decelerate before reaching the hard geofence boundary rather than waiting until after a breach occurs.
 
@@ -153,20 +124,8 @@ The vehicle must also have sufficiently low velocity to prevent position-hold os
 
 Recovery is considered complete when:
 
-$$
-\text{ready_to_hold}
-====================
-
-\text{in_safe_radius}
-\land
-\left(
-\sqrt{
-v_x^2+v_y^2+v_z^2
-}
-\leq 0.2
-\text{ m/s}
-\right)
-$$
+current_speed = sqrt(vx^2 + vy^2 + vz^2)
+ready_to_hold = in_safe_radius AND (current_speed <= 0.2 m/s)
 
 This provides both:
 
@@ -187,16 +146,7 @@ The multi-drone controller evaluates 3D Euclidean separation between every vehic
 
 If the separation falls below **4.0 m**, opposing lateral velocity vectors are applied to increase separation.
 
-$$
-D_{ij}
-======
-
-\sqrt{
-(x_i-x_j)^2+
-(y_i-y_j)^2+
-(z_i-z_j)^2
-}
-$$
+distance = sqrt((x1 - x2)^2 + (y1 - y2)^2 + (z1 - z2)^2)
 
 Collision avoidance therefore operates independently of the individual geofence recovery logic.
 
