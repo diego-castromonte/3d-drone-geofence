@@ -428,3 +428,19 @@ Multi-Drone Expansion
 ```
 
 The resulting system demonstrates a layered autonomous safety architecture capable of detecting geofence violations, autonomously recovering individual vehicles, maintaining inter-drone separation, and coordinating multiple vehicles through a synchronized formation maneuver.
+
+## Limitations & Future Roadmap
+
+### Limitations
+* **$P$-Only Kinematic Loop:** Operates without integral ($I$) or derivative ($D$) terms, resulting in minor steady-state lag on long trajectory vectors.
+* **Fixed Origin Recovery:** The `RECOVERING` state always targets the central origin (`0, 0, -10m`) rather than computing the closest safe perimeter boundary point.
+* **Axis-Aligned Bounding Box:** Geofence limits are restricted to rectangular local NED boundaries.
+* **SITL-Only Validation:** Tested exclusively within ArduPilot SITL flight simulation and QGroundControl environments; hardware flight tests remain pending.
+
+---
+
+### Future Roadmap
+- [ ] **Dynamic Multi-Drone Scaling:** Rewrite the control loop to support any number of drones ($N \ge 4$) automatically, calculating formation spacing (squares, pentagons, etc.) on the fly instead of hardcoding 3 vehicles.
+- [ ] **Leader-Follower Recon System:** Implement a master drone pathing loop with offset follower drones enforcing geofence safety.
+- [ ] **S-Curve Acceleration Profiling:** Add jerk/acceleration limits on velocity setpoints to smooth out sharp directional changes during recovery and orbit transitions.
+- [ ] **Hardware-in-the-Loop (HITL) Testing:** Port controller logic onto an onboard companion computer (ESP32/Raspberry Pi) communicating over serial/UART with physical flight controllers.
