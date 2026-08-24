@@ -363,9 +363,6 @@ python3 multi_drone/multi_GeoFence.py
 ```
 
 ---
-
-# Project Structure
-
 # Project Structure
 
 ```text
