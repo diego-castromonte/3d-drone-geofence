@@ -1,88 +1,259 @@
-# Virtual Safety Boundary Guard & Emergency Disturbance Recovery
+# Autonomous Drone Geofence Guard & Multi-Agent Formation Control
 
-A closed-loop 3D geofence safety controller for ArduCopter, built in Python with PyMAVLink against ArduPilot SITL. The controller continuously monitors real-time vehicle telemetry, enforces a 3D geofence, and autonomously recovers the vehicle when a breach occurs — using proportional velocity control and a velocity-gated state machine to avoid overshoot on recovery.
+A closed-loop 3D geofence safety controller and multi-agent formation flight stack for ArduCopter, built in Python using **PyMAVLink** against **ArduPilot SITL**, paired with a real-time **MATLAB** telemetry dashboard over UDP.
 
-This is a supporting artifact for a larger multi-drone recon system (master/follower architecture, in progress). It's the first fully demonstrable closed-loop control piece in that project.
+This repository documents the evolution of a safety layer from a **single-vehicle reactive guard** to a **3-drone dynamic formation and collision-avoidance system**.
 
-**Stack:** Python · PyMAVLink · ArduPilot SITL · MAVLink (`SET_POSITION_TARGET_LOCAL_NED`)
+**Stack:** Python · PyMAVLink · ArduPilot SITL · MATLAB · MAVLink (`SET_POSITION_TARGET_LOCAL_NED`)
 
 ---
 
-## Why this exists
+## Why This Exists
 
-Autonomous multi-vehicle systems need a safety layer that's independent of the mission logic — something that can override a bad waypoint or a communications hiccup and get the vehicle back inside safe airspace without operator intervention. This project is that layer: a standalone geofence guard that sits between the mission planner and the vehicle, ready to take over the moment a 3D boundary is violated.
+Autonomous multi-vehicle systems require a safety layer independent of primary mission logic—a mechanism capable of overriding invalid waypoints or telemetry disruptions to return vehicles to safe airspace without human intervention.
 
-## Architecture
+This repository provides that layer: an autonomous geofence guard operating between mission planning and vehicle control.
 
-Three-state finite state machine, driven off live `LOCAL_POSITION_NED` telemetry at the MAVLink stream rate:
+---
+
+# Architecture Evolution
+
+## Phase 1: Single-Drone Geofence Guard
+
+**Location:** `single_drone/geofence_guard.py`
+
+A standalone safety layer governing a single vehicle.
+
+If a waypoint breaches the 3D boundary, the guard:
+
+* Detects the geofence violation
+* Aborts the invalid waypoint
+* Calculates a recovery vector toward the central origin
+* Commands velocity-based recovery
+* Slows the vehicle near geofence boundaries
+* Gates recovery completion on both position and velocity
+* Transitions to holding once the vehicle has settled
+
+### State Machine
 
 ```mermaid
 stateDiagram-v2
     [*] --> FLYING
-    FLYING --> RECOVERING:  Breach
-    RECOVERING --> FLYING: Safe + WP Remains
-    RECOVERING --> HOLDING: Safe + Speed <= 0.2m/s
+    FLYING --> RECOVERING: Breach Detected
+    RECOVERING --> FLYING: Safe Zone Reached + WP Remains
+    RECOVERING --> HOLDING: Safe Zone + Speed <= 0.2m/s
     FLYING --> HOLDING: Final WP Reached
     HOLDING --> [*]
 ```
 
-- **FLYING** — proportional velocity control toward the current waypoint, with adaptive proximity slowdown near the fence walls.
-- **RECOVERING** — Waypoint is aborted, and the vehicle is driven back toward a safe origin under a vector-based velocity controller.
-- **HOLDING** — Vehicle switches from velocity control to position control (MAVLink bitmask swap) and locks onto a fixed coordinate with zero commanded velocity.
+---
 
-## Control design
+## Phase 2: Multi-Drone Formation & Collision Avoidance
 
-### Proportional velocity control (FLYING / RECOVERING)
+**Location:** `multi_drone/multi_GeoFence.py`
 
-Each axis is driven independently by a simple P controller on position error, clamped to a max speed:
+The system scales the safety architecture to **3 quadcopters** running parallel control loops.
 
-```
-error   = target - current_position
-velocity = clamp(-v_max, v_max, Kp * error)
-```
+Features include:
 
-with `Kp = 1.3`. Horizontal axes (X, Y) are capped at 6.0 m/s cruise, vertical (Z) at 1.5 m/s, before any proximity scaling is applied.
+* Independent geofence monitoring
+* Independent breach recovery
+* Dynamic all-pairs collision detection
+* Inter-drone separation enforcement
+* Coordinated waypoint execution
+* Synchronized formation entry
+* 120°-phased circular orbit formation
+* Position-hold after formation completion
 
-### Adaptive proximity slowdown
+The final coordinated maneuver is called **"Triangle Tango."**
 
-A second, softer safety layer runs independently of hard breach detection. The controller evaluates the shortest distance to any of the 6 geofence faces in real time, and within an 8.0 m proximity zone, linearly throttles cruise speed down:
+### State Machine
 
-```
-min_wall_dist = min(dist_to_x_wall, dist_to_y_wall, dist_to_z_wall)
-
-fence_speed = 1.0                                  if min_wall_dist >= 8.0 m
-fence_speed = max(0.15, min_wall_dist / 8.0)        if min_wall_dist <  8.0 m
-
-adaptive_max_horiz = 6.0 * fence_speed   # m/s
-adaptive_max_vert  = 1.5 * fence_speed   # m/s
-```
-
-This means the vehicle is already decelerating well before it would ever hit a hard boundary, rather than relying purely on reactive recovery.
-
-### Velocity-gated settling (RECOVERING → HOLDING)
-
-Early iterations locked into a hold position based on spatial coordinates alone, causing visible wobble due to residual kinetic momentum. 
-The residual velocity would carry the vehicle past the hold point, and the controller would fight it back and forth. The state transition from RECOVERING to HOLDING is now gated by boundary compliance and low total velocity theshold: 
-
-```
-current_speed = sqrt(vx^2 + vy^2 + vz^2)
-ready_to_hold = in_safe_radius AND (current_speed <= 0.2 m/s)
+```mermaid
+stateDiagram-v2
+    [*] --> FLYING
+    FLYING --> RECOVERING: Individual Vehicle Breach
+    RECOVERING --> FLYING: Safe Zone Reached
+    FLYING --> READY_FOR_TANGO: WP Queue Cleared
+    READY_FOR_TANGO --> TANGO: All 3 Drones Ready at Gates
+    TANGO --> HOLDING: Orbit Rotations Complete
+    HOLDING --> [*]
 ```
 
-### Geofence bounds (local NED frame)
+---
 
-| Axis | Limit |
-|---|---|
-| X (North/South) | ±25 m |
-| Y (East/West) | ±25 m |
-| Z ceiling | -20 m (20 m up) |
-| Z floor | -3 m (3 m up) |
+# Control & Safety Architecture
 
-## Sample run
+## Proportional Kinematic Control
 
-Real SITL output from a live 3-waypoint mission with a genuine breach/recovery cycle:
+Each axis is controlled independently using a proportional position-error controller with velocity limits.
 
-```
+$$
+\text{velocity} =
+\text{clamp}
+\left(
+-v_{\text{max}},
+v_{\text{max}},
+K_p(\text{target}-\text{current})
+\right)
+$$
+
+Where:
+
+* $K_p = 1.3$
+* Horizontal maximum velocity = **6.0 m/s**
+* Vertical maximum velocity = **1.5 m/s**
+
+The commanded velocity is additionally modified by the adaptive geofence slowdown system.
+
+---
+
+## Adaptive Wall Proximity Slowdown
+
+The controller continuously evaluates the shortest distance to all six geofence faces.
+
+When a vehicle enters the **8.0 m proximity buffer**, its maximum velocity is reduced linearly.
+
+$$
+\text{fence_speed} =
+\begin{cases}
+1.0 & d_{\min} \geq 8.0\text{ m} \
+\max\left(0.15,\frac{d_{\min}}{8.0}\right)
+& d_{\min}<8.0\text{ m}
+\end{cases}
+$$
+
+The resulting velocity limits are:
+
+$$
+\text{adaptive_max_horiz}
+=========================
+
+6.0 \cdot \text{fence_speed}
+\quad \text{m/s}
+$$
+
+$$
+\text{adaptive_max_vert}
+========================
+
+1.5 \cdot \text{fence_speed}
+\quad \text{m/s}
+$$
+
+This allows vehicles to decelerate before reaching the hard geofence boundary rather than waiting until after a breach occurs.
+
+---
+
+## Velocity-Gated Settling
+
+Recovery does not complete solely because the vehicle has returned to a safe position.
+
+The vehicle must also have sufficiently low velocity to prevent position-hold oscillation or overshoot.
+
+Recovery is considered complete when:
+
+$$
+\text{ready_to_hold}
+====================
+
+\text{in_safe_radius}
+\land
+\left(
+\sqrt{
+v_x^2+v_y^2+v_z^2
+}
+\leq 0.2
+\text{ m/s}
+\right)
+$$
+
+This provides both:
+
+1. **Spatial compliance**
+2. **Kinematic settling**
+
+before transitioning into `HOLDING`.
+
+---
+
+## Multi-Pair Collision Avoidance
+
+The multi-drone controller evaluates 3D Euclidean separation between every vehicle pair:
+
+* Drone 1 ↔ Drone 2
+* Drone 1 ↔ Drone 3
+* Drone 2 ↔ Drone 3
+
+If the separation falls below **4.0 m**, opposing lateral velocity vectors are applied to increase separation.
+
+$$
+D_{ij}
+======
+
+\sqrt{
+(x_i-x_j)^2+
+(y_i-y_j)^2+
+(z_i-z_j)^2
+}
+$$
+
+Collision avoidance therefore operates independently of the individual geofence recovery logic.
+
+---
+
+# Geofence Bounds
+
+The system operates in the ArduPilot **Local NED coordinate frame**.
+
+| Axis |   Limit | Description          |
+| ---- | ------: | -------------------- |
+| X    | ±25.0 m | North/South boundary |
+| Y    | ±25.0 m | East/West boundary   |
+| Z    | -20.0 m | Maximum altitude     |
+| Z    |  -3.0 m | Minimum altitude     |
+
+The resulting protected volume is a 50 m × 50 m × 17 m 3D flight region.
+
+---
+
+# Real-Time Telemetry Dashboard
+
+The multi-drone controller streams telemetry as JSON packets over **UDP port `5005`**.
+
+The included MATLAB dashboard:
+
+`live_drone_dashboard_2D.m`
+
+provides real-time visualization of the simulated vehicles.
+
+### Dashboard Features
+
+* **2D top-down spatial map**
+
+  * Drone trajectories
+  * Geofence perimeter
+  * Current vehicle positions
+  * Proximity alert lines
+
+* **Debounced event annotations**
+
+  * Red `X` markers for 2D geofence breaches
+  * Red `v` markers for altitude boundary violations
+
+* **Altitude profile**
+
+  * Real-time altitude tracking
+  * Ceiling visualization
+  * Floor visualization
+
+---
+
+# Sample Execution Logs
+
+## Single-Drone Mission
+
+```text
 Generated Mission Queue: [(-9.13, 4.07, -6.75), (-16.97, 18.04, -5.32), (26.9, -22.87, -10.09)]
 Arming vehicle...
 Taking off to 10m...
@@ -112,40 +283,198 @@ Aborting invalid waypoint (26.9, -22.87, -10.09) and executing recovery...
 [HOLDING] Target WP:(26.9, -22.87, -10.09) | Pos: (3.6, -4.6, -10.0)m
 ```
 
-Note the mission-generated waypoint 3 (26.9, -22.87, -10.09) is itself outside the ±25 m fence — this run demonstrates the guard catching and aborting an invalid waypoint mid-flight, recovering to a stable hold near the origin, and settling into HOLDING without wobble.
+---
 
-*(Full log saved separately in `logs/sample_run.log`)*
+## Multi-Drone Mission
 
-## Known limitations
+```text
+python3 multi_GeoFence.py
+Connecting to Drone 1 on udpin:localhost:14551...
+[Drone 1] Setting GUIDED mode...
+[Drone 1] Arming motors...
+[Drone 1] Taking off to 5m...
+Connecting to Drone 2 on udpin:localhost:14561...
+[Drone 2] Setting GUIDED mode...
+[Drone 2] Arming motors...
+[Drone 2] Taking off to 5m...
+Connecting to Drone 3 on udpin:localhost:14571...
+[Drone 3] Setting GUIDED mode...
+[Drone 3] Arming motors...
+[Drone 3] Taking off to 5m...
 
-- **$P$-Only Control Loop**: P-only control — no integral term (some steady-state lag is possible on long straight-line approaches) or derivative term (no explicit damping beyond the velocity-gated hold check). Working, but not tuned for minimum settling time.
-- **Single-vehicle only** — this guard governs one drone. Multi-vehicle SITL (drone 2 aborting if drone 1 breaches) is the active next step.
-- **Fixed recovery target** — RECOVERING always drives back toward the origin `(0, 0, -10m)` rather than the nearest safe point, so recovery distance can be long depending on where the breach happens.
-- **SITL only** — validated in simulation (ArduPilot SITL + QGroundControl), not yet flown on hardware.
-- **Straight-line NED geofence, no yaw awareness** — bounds are a simple box in the local NED frame; no polygon or dynamic geofence support yet.
+All 3 Drones Connected, Armed, and Ready. Starting Loop...
 
-## Requirements
+[Drone 1 - FLYING] Pos:(5.4, -5.6, -10.0)m -> Target:(-21.7, -24.4, -1.0)m | Cmd Vel:(-5.26, -5.26, 1.31)m/s
+[Drone 2 - FLYING] Pos:(2.9, 7.2, -10.0)m -> Target:(-25.7, 22.9, -6.1)m | Cmd Vel:(-5.25, 5.25, 1.31)m/s
+[Drone 3 - FLYING] Pos:(-7.8, -1.0, -10.0)m -> Target:(11.7, -15.4, -6.8)m | Cmd Vel:(5.25, -5.25, 1.31)m/s
+...
+>>> [Drone 3] Reached WP1 at (11.15, -16.18, -6.77)m
 
+*** [Drone 3] GEOFENCE BREACH at (25.35, -2.33, -10.12)m! ***
+>>> [Drone 2] Reached WP1 at (-24.30, 22.91, -6.12)m
+
+*** [Drone 2] GEOFENCE BREACH at (-25.08, 22.90, -6.15)m! ***
+*** [Drone 1] GEOFENCE BREACH at (-19.60, -24.35, -2.97)m! ***
+
+[Drone 1 - RECOVERING] Pos:(-20.1, -24.4, -3.0)m -> Target:(0.0, 0.0, -10.0)m | Cmd Vel:(5.00, 5.00, -2.00)m/s
+[Drone 2 - RECOVERING] Pos:(-16.9, 15.0, -10.8)m -> Target:(0.0, 0.0, -10.0)m | Cmd Vel:(5.00, -5.00, 0.99)m/s
+[Drone 3 - RECOVERING] Pos:(10.1, -0.0, -10.0)m -> Target:(0.0, 0.0, -10.0)m | Cmd Vel:(-5.00, 0.01, 0.01)m/s
+
+[WARNING] PROXIMITY ALERT between Drone 1 and 2! Dist: 2.69m
+...
+>>> [Drone 1] Reached WP4 at (7.27, -0.02, -10.01)m
+
+[Drone 1 - TANGO] Pos:(-5.8, 3.5, -10.0)m -> Cmd Pos:(-7.3, -3.2, -10.0)m
+[Drone 2 - TANGO] Pos:(7.1, -3.2, -10.0)m -> Cmd Pos:(7.5, 2.8, -10.0)m
+[Drone 3 - TANGO] Pos:(-0.8, 7.8, -10.0)m -> Cmd Pos:(-6.2, 5.1, -10.0)m
+
+*** TRIANGLE TANGO COMPLETE -- SWITCHING TO POSITION HOLD ***
+
+[Drone 1 - HOLDING] Pos:(8.2, -1.0, -10.0)m -> Cmd Pos:(5.4, -5.6, -10.0)m
+[Drone 2 - HOLDING] Pos:(-3.2, 7.6, -10.0)m -> Cmd Pos:(2.1, 7.5, -10.0)m
+[Drone 3 - HOLDING] Pos:(-5.0, -6.6, -10.0)m -> Cmd Pos:(-7.5, -1.9, -10.0)m
 ```
-pymavlink
-```
 
-Also requires a running ArduPilot SITL instance broadcasting on UDP port 14551 (SITL's default MAVLink output only goes to 14550 for QGroundControl — a second `--out=udp:127.0.0.1:14551` flag is needed at launch for this script to connect).
+---
 
-## Running it
+# Configuration & QGroundControl Integration
+
+When running QGroundControl alongside ArduPilot SITL:
+
+* Avoid manually created QGroundControl communication links.
+* `sim_vehicle.py` automatically streams telemetry over UDP.
+* Manual links can create port conflicts and stale connection states.
+* Ensure **UDP AutoConnect** is enabled in QGroundControl.
+* Delete manual link configurations when using the native SITL connections.
+
+For multi-vehicle SITL, each vehicle is assigned its own instance and MAVLink port.
+
+---
+
+# Running the Project
+
+## 1. Single-Drone Guard
+
+### Terminal 1 — Launch SITL
 
 ```bash
-# Terminal 1 — launch SITL with a second MAVLink output for this script
 sim_vehicle.py -v ArduCopter --out=udp:127.0.0.1:14551
-
-# Terminal 2 — run the guard
-python3 geofence_guard.py
 ```
 
-Optionally connect QGroundControl (default UDP 14550) alongside to watch the vehicle live.
+### Terminal 2 — Launch Guard
 
-## Roadmap
+```bash
+python3 single_drone/geofence_guard.py
+```
 
-- Multi-vehicle SITL: second drone follows drone 1's commands, aborts if drone 1 breaches
-- Master/follower click-to-move control interface (full multi-drone recon system)
-- Hardware flight test once budget allows
+---
+
+## 2. Multi-Drone System
+
+### Terminal 1 — Drone 1
+
+```bash
+sim_vehicle.py -v ArduCopter -I0 \
+    --out=udp:127.0.0.1:14550 \
+    --out=udp:127.0.0.1:14551 \
+    --sysid=1
+```
+
+### Terminal 2 — Drone 2
+
+```bash
+sim_vehicle.py -v ArduCopter -I1 \
+    --out=udp:127.0.0.1:14560 \
+    --out=udp:127.0.0.1:14561 \
+    --sysid=2
+```
+
+### Terminal 3 — Drone 3
+
+```bash
+sim_vehicle.py -v ArduCopter -I2 \
+    --out=udp:127.0.0.1:14570 \
+    --out=udp:127.0.0.1:14571 \
+    --sysid=3
+```
+
+### Terminal 4 — MATLAB Dashboard
+
+Open MATLAB and run:
+
+```matlab
+live_drone_dashboard_2D.m
+```
+
+### Terminal 5 — Multi-Drone Controller
+
+```bash
+python3 multi_drone/multi_GeoFence.py
+```
+
+---
+
+# Project Structure
+
+```text
+.
+├── single_drone/
+│   └── geofence_guard.py
+│
+├── multi_drone/
+│   └── multi_GeoFence.py
+│
+├── matlab/
+│   └── live_drone_dashboard_2D.m
+│
+└── README.md
+```
+
+---
+
+# Key Technologies
+
+| Technology                      | Role                              |
+| ------------------------------- | --------------------------------- |
+| Python                          | Flight-control and safety logic   |
+| PyMAVLink                       | MAVLink communication             |
+| ArduPilot SITL                  | Multi-vehicle simulation          |
+| ArduCopter                      | Simulated vehicle firmware        |
+| MAVLink                         | Vehicle telemetry and commands    |
+| `SET_POSITION_TARGET_LOCAL_NED` | Velocity/position control         |
+| MATLAB                          | Real-time telemetry visualization |
+| UDP                             | Telemetry transport               |
+
+---
+
+# System Summary
+
+The project evolves through two control architectures:
+
+```text
+Single Drone
+     │
+     ▼
+3D Geofence Detection
+     │
+     ▼
+Velocity-Based Recovery
+     │
+     ▼
+Velocity-Gated Hold
+     │
+     ▼
+Multi-Drone Expansion
+     │
+     ├── Independent Geofence Guards
+     │
+     ├── All-Pairs Collision Avoidance
+     │
+     ├── Coordinated Waypoint Execution
+     │
+     ├── Formation Synchronization
+     │
+     └── Triangle Tango Orbit
+```
+
+The resulting system demonstrates a layered autonomous safety architecture capable of detecting geofence violations, autonomously recovering individual vehicles, maintaining inter-drone separation, and coordinating multiple vehicles through a synchronized formation maneuver.
